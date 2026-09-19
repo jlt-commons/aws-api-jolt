@@ -34,18 +34,24 @@
 
 (deftest body-reads-bytebuffer-without-consuming-it
   (let [bb (ByteBuffer/wrap (.getBytes "hello" "UTF-8"))]
-    (is (= "hello" (jhttp/->body bb)))
+    (is (= (vec (.getBytes "hello" "UTF-8")) (vec (jhttp/->body bb))))
     (testing "a retry re-reads the same bytes"
-      (is (= "hello" (jhttp/->body bb))))))
+      (is (= (vec (.getBytes "hello" "UTF-8")) (vec (jhttp/->body bb)))))))
 
 (deftest body-handles-empty-buffer
-  (is (= "" (jhttp/->body (ByteBuffer/wrap (byte-array 0))))))
+  (is (= [] (vec (jhttp/->body (ByteBuffer/wrap (byte-array 0)))))))
+
+(deftest body-preserves-bytes-that-are-not-valid-utf8
+  (testing "a String round-trip would replace these with U+FFFD, irrecoverably"
+    (let [raw (byte-array [(unchecked-byte 0x89) (unchecked-byte 0x50)
+                           (unchecked-byte 0xFF) (unchecked-byte 0xFE)])]
+      (is (= (vec raw) (vec (jhttp/->body (ByteBuffer/wrap raw))))))))
 
 (deftest response-maps-status-and-headers
   (let [r (jhttp/->response {:status 200 :headers {"x" "y"} :body "hi"})]
     (is (= 200 (:status r)))
     (is (= {"x" "y"} (:headers r)))
-    (is (= "hi" (jhttp/->body (:body r))))))
+    (is (= (vec (.getBytes "hi" "UTF-8")) (vec (jhttp/->body (:body r)))))))
 
 (deftest response-with-no-body-has-nil-body
   ;; A 204 goes through the same mapping; ByteBuffer/wrap on nil would throw.

@@ -20,8 +20,13 @@
          (when (seq query-string) (str "?" query-string)))))
 
 (defn ->body
-  "aws-api hands bodies over as a ByteBuffer. Read it without consuming the
-   caller's buffer, so a retry sees the same bytes."
+  "aws-api hands bodies over as a ByteBuffer. Read it into a byte array without
+   consuming the caller's buffer, so a retry sees the same bytes.
+
+   Bytes, never a String. A String round-trip replaces every byte that is not
+   valid UTF-8 with U+FFFD and cannot be undone: a 5430-byte binary body
+   measured 12684 bytes after one such round-trip, so S3 GetObject on any
+   binary object would return garbage."
   [body]
   (cond
     (nil? body) nil
@@ -29,8 +34,9 @@
     (let [bb (.duplicate ^ByteBuffer body)
           ba (byte-array (.remaining bb))]
       (.get bb ba)
-      (String. ba "UTF-8"))
-    :else (str body)))
+      ba)
+    (string? body) (.getBytes ^String body "UTF-8")
+    :else body))
 
 (defn ->response
   "jolt-lang/http-client response -> the aws-api response map."
@@ -38,7 +44,9 @@
   {:status  (:status resp)
    :headers (:headers resp)
    :body    (when-let [b (:body resp)]
-              (ByteBuffer/wrap (.getBytes ^String b "UTF-8")))})
+              (ByteBuffer/wrap (if (string? b)
+                                 (.getBytes ^String b "UTF-8")
+                                 ^bytes b)))})
 
 (defn- send! [request channel]
   (try
@@ -47,6 +55,8 @@
                                     :method  (or (:request-method request) :get)
                                     :headers (:headers request)
                                     :body    (->body (:body request))
+                                    ;; raw bytes both ways; see ->body
+                                    :as      :byte-array
                                     :throw-exceptions false})))
     (catch Throwable t
       ;; aws-api's retry layer reads anomalies off the channel; an exception

@@ -8,8 +8,7 @@
             [cognitect.aws.credentials :as creds]
             [cognitect.aws.http :as http]
             [cognitect.aws.client.shared :as shared]
-            [cognitect.aws.resources :as res]
-            [cognitect.aws.jolt.provides])
+            [cognitect.aws.resources :as res])
   (:import [java.nio ByteBuffer]))
 
 (def list-buckets-xml

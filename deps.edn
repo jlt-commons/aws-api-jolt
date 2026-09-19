@@ -1,16 +1,5 @@
 {:paths ["src" "resources"]
 
- ;; aws-api's cognitect.aws.util.xml is compiled from ~/.m2, and jolt resolves
- ;; a dependency namespace's class references against this table BEFORE that
- ;; namespace compiles -- earlier than any require of ours can run.
- ;; jolt-lang/xml registers these classes but declares none of its own, so
- ;; without this table the load fails with "No dependency provides
- ;; javax.xml.stream.XMLStreamConstants". Delete once xml declares them.
- ;; Exactly two: aws-api names XMLStreamReader only in type hints, which jolt
- ;; never resolves, so claiming it would claim a class that does not exist.
- :jolt/provides {cognitect.aws.jolt.provides
-                 ["javax.xml.stream.XMLInputFactory"
-                  "javax.xml.stream.XMLStreamConstants"]}
 
  :deps {;; 0.8.847 or later. Every release from 0.8.603 to 0.8.824 calls
         ;; (.-invoke-async client op-map), which jolt reads as a field access.
@@ -21,7 +10,7 @@
 
         jolt-lang/xml
         {:git/url "https://github.com/jolt-lang/xml"
-         :git/sha "dd7b80a2c9b9d71715b9b9257379a93bfc67c3e5"}
+         :git/sha "90706d59f7c3d6ec2b3f754ec88399650ce1934e"}
         ;; SigV4 needs MessageDigest and Mac. http-client pulls crypto in
         ;; transitively for TLS, but signing must not depend on a transport's
         ;; transitive dependency, so it is declared here too.

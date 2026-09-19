@@ -2,8 +2,7 @@
   "Live AWS calls across all four wire protocols. Opt-in: `jolt -M:live`.
    Profile comes from AWS_PROFILE, defaulting to `default`."
   (:require [cognitect.aws.client.api :as aws]
-            [cognitect.aws.credentials :as creds]
-            [cognitect.aws.jolt.provides]))
+            [cognitect.aws.credentials :as creds]))
 
 (def profile (or (System/getenv "AWS_PROFILE") "default"))
 (def region  (or (System/getenv "AWS_REGION") "us-east-1"))

@@ -2,7 +2,6 @@
   "Guards for two Jolt traps that fail far from their cause."
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.tools.logging.impl :as impl]
-            [cognitect.aws.jolt.provides]
             [cognitect.aws.util.xml :as axml]
             [jolt.xml]))
 

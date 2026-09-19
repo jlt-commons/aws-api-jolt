@@ -41,12 +41,18 @@ differ by version, measured across the releases we tested:
 |---------|---------------|
 | 0.8.612, 0.8.692 | ships its own `cognitect_aws_http.edn`, so discovery finds two configs; also calls `(.-invoke-async …)` |
 | 0.8.723 | calls `(.-invoke-async …)`, which Jolt reads as a field access where the JVM treats it as a method call |
-| 0.8.762 | no `cognitect/aws/util/xml.clj` at all, so the `:jolt/provides` table here does not match what it imports |
+| 0.8.762 | no `cognitect/aws/util/xml.clj` at all, so it does not import what `jolt-lang/xml` declares |
 | 0.8.824 | works in our testing, but predates the XML layout this library's provides table is written against |
 
 0.8.847 is what the live suite is run against. Other versions are untested
 here, so treat the pin as the supported configuration rather than a floor with
 a known-good range below it.
+
+The `(.-invoke-async …)` half of this is fixed upstream in
+[jolt-lang/jolt#1057](https://github.com/jolt-lang/jolt/pull/1057), merged but
+not yet in a release. Once a release carries it, the releases that failed only
+for that reason should work, but nothing here has tested them and the pin stays
+until something does.
 
 ## What is verified
 

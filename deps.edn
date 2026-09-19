@@ -1,0 +1,55 @@
+{:paths ["src" "resources"]
+
+ ;; aws-api's cognitect.aws.util.xml is compiled from ~/.m2, and jolt resolves
+ ;; a dependency namespace's class references against this table BEFORE that
+ ;; namespace compiles -- earlier than any require of ours can run.
+ ;; jolt-lang/xml registers these classes but declares none of its own, so
+ ;; without this table the load fails with "No dependency provides
+ ;; javax.xml.stream.XMLStreamConstants". Delete once xml declares them.
+ ;; Exactly two: aws-api names XMLStreamReader only in type hints, which jolt
+ ;; never resolves, so claiming it would claim a class that does not exist.
+ :jolt/provides {cognitect.aws.jolt.provides
+                 ["javax.xml.stream.XMLInputFactory"
+                  "javax.xml.stream.XMLStreamConstants"]}
+
+ :deps {;; 0.8.847 or later. Every release from 0.8.603 to 0.8.824 calls
+        ;; (.-invoke-async client op-map), which jolt reads as a field access.
+        ;; The exclusion is insurance: jolt-lang/logging already beats a
+        ;; transitive tools.logging, and loses only to a top-level one.
+        com.cognitect.aws/api {:mvn/version "0.8.847"
+                               :exclusions [org.clojure/tools.logging]}
+
+        jolt-lang/xml
+        {:git/url "https://github.com/jolt-lang/xml"
+         :git/sha "dd7b80a2c9b9d71715b9b9257379a93bfc67c3e5"}
+        ;; SigV4 needs MessageDigest and Mac. http-client pulls crypto in
+        ;; transitively for TLS, but signing must not depend on a transport's
+        ;; transitive dependency, so it is declared here too.
+        jolt-lang/crypto
+        {:git/url "https://github.com/jolt-lang/crypto"
+         :git/sha "8d821a9dcdca2fd909e2bedc215d523775b16073"}
+        ;; data.json 2.5.2 reaches for java.time.format.DateTimeFormatter.
+        jolt-lang/time
+        {:git/url "https://github.com/jolt-lang/time"
+         :git/sha "8030de28d6cda6096896c3e653babdbc8105499c"}
+        jolt-lang/logging
+        {:git/url "https://github.com/jolt-lang/logging"
+         :git/sha "ec6747e55583118d881faf4ab41e68d7e587ce4c"}
+        jolt-lang/http-client
+        {:git/url "https://github.com/jolt-lang/http-client"
+         :git/sha "f517b2d48b4cffd5bc33d9e68ac61643a5e2922c"}}
+
+ :aliases {:test {:extra-paths ["test"]
+                  :extra-deps {com.cognitect.aws/endpoints {:mvn/version "1.1.12.772"}
+                               com.cognitect.aws/s3 {:mvn/version "868.2.1580.0"}}
+                  :main-opts ["-m" "cognitect.aws.jolt.test-runner"]}
+           :live {:extra-paths ["test"]
+                  :extra-deps {com.cognitect.aws/endpoints {:mvn/version "1.1.12.772"}
+                               com.cognitect.aws/s3 {:mvn/version "868.2.1580.0"}
+                               com.cognitect.aws/sts {:mvn/version "871.2.54.18"}
+                               com.cognitect.aws/dynamodb {:mvn/version "871.2.51.4"}
+                               com.cognitect.aws/lambda {:mvn/version "871.2.54.18"}}
+                  :main-opts ["-m" "cognitect.aws.jolt.live-runner"]}}
+
+ :tasks {test "jolt -M:test"
+         live "jolt -M:live"}}

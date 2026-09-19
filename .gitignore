@@ -1,0 +1,7 @@
+.jolt/
+.cpcache/
+*.jar
+.nrepl-port
+NREPL.lock
+CLAUDE.md
+AGENTS.md

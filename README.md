@@ -11,7 +11,7 @@ HTTP client and a host-class declaration.
 ;; deps.edn
 {:deps {jlt-commons/aws-api-jolt
         {:git/url "https://github.com/jlt-commons/aws-api-jolt"
-         :git/sha "<full-sha>"}
+         :git/sha "752a0f5d592649cb59a4002698c4959f7b4efe22"}
         ;; the services you actually call
         com.cognitect.aws/endpoints {:mvn/version "1.1.12.772"}
         com.cognitect.aws/s3        {:mvn/version "868.2.1580.0"}}}

@@ -59,6 +59,33 @@
   ;; A 204 goes through the same mapping; ByteBuffer/wrap on nil would throw.
   (is (nil? (:body (jhttp/->response {:status 204 :headers {}})))))
 
+(deftest request-refuses-redirects
+  (testing "following a redirect would replay the SigV4 Authorization header,
+            signed for the original host, at the redirect target"
+    (is (false? (:follow-redirects
+                 (jhttp/->request {:server-name "h" :uri "/" :request-method :get}))))))
+
+(deftest request-omits-timeouts-when-aws-api-asks-for-none
+  (testing "no invented default; the reference client applies none either"
+    (let [r (jhttp/->request {:server-name "h" :uri "/" :request-method :get})]
+      (is (nil? (:socket-timeout r)))
+      (is (nil? (:conn-timeout r))))))
+
+(deftest request-honours-a-positive-timeout-msec
+  (testing "aws-api passes :timeout-msec 1000 on IMDS calls so the credential
+            chain fails fast rather than stalling for minutes"
+    (let [r (jhttp/->request {:server-name "h" :uri "/" :request-method :get
+                              :timeout-msec 1000})]
+      (is (= 1000 (:socket-timeout r)))
+      (is (= 1000 (:conn-timeout r))))))
+
+(deftest request-ignores-a-non-positive-timeout-msec
+  (testing "zero and negative are treated as absent, as the reference does"
+    (doseq [t [0 -1]]
+      (let [r (jhttp/->request {:server-name "h" :uri "/" :request-method :get
+                                :timeout-msec t})]
+        (is (nil? (:socket-timeout r)) (str "timeout-msec " t))))))
+
 (deftest transport-failure-arrives-as-an-anomaly
   (testing "a connection that cannot be made yields a fault on the channel,
             never a throw, because -submit runs on another thread"

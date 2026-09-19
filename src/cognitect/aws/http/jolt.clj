@@ -54,35 +54,37 @@
                                  (.getBytes ^String b "UTF-8")
                                  ^bytes b)))})
 
+(defn ->request
+  "Build the jolt-lang/http-client request map for an aws-api request.
+
+   Pure, so the two properties that have no other offline guard -- that we
+   refuse redirects, and that we honour :timeout-msec without inventing a
+   default -- are assertable without a network."
+  [request]
+  (let [timeout (:timeout-msec request)]
+    (cond-> {:url     (->url request)
+             :method  (or (:request-method request) :get)
+             :headers (:headers request)
+             :body    (->body (:body request))
+             ;; raw bytes both ways; see ->body
+             :as      :byte-array
+             ;; aws-api's own client builds with HttpClient$Redirect/NEVER.
+             ;; Following a redirect here would replay the SigV4 Authorization
+             ;; header, signed for the original host, at the new host, and
+             ;; clj-http-lite's redirect loop has no depth limit.
+             :follow-redirects false
+             :throw-exceptions false}
+      ;; aws-api asks for a deadline where it needs one -- :timeout-msec 1000
+      ;; on every IMDS call, so the credential chain fails fast on a machine
+      ;; with no instance profile. Honour it when positive, and invent no
+      ;; default, exactly as the reference client does.
+      (and timeout (pos? timeout))
+      (assoc :socket-timeout timeout
+             :conn-timeout timeout))))
+
 (defn- send! [request channel]
   (try
-    (let [timeout (:timeout-msec request)]
-      (a/put! channel (->response
-                       (http/request
-                        (cond-> {:url     (->url request)
-                                 :method  (or (:request-method request) :get)
-                                 :headers (:headers request)
-                                 :body    (->body (:body request))
-                                 ;; raw bytes both ways; see ->body
-                                 :as      :byte-array
-                                 ;; aws-api's own client builds with
-                                 ;; HttpClient$Redirect/NEVER. Following a
-                                 ;; redirect here would replay the SigV4
-                                 ;; Authorization header, signed for the
-                                 ;; original host, at the new host, and
-                                 ;; clj-http-lite's redirect loop has no depth
-                                 ;; limit.
-                                 :follow-redirects false
-                                 :throw-exceptions false}
-                          ;; aws-api asks for a deadline where it needs one --
-                          ;; :timeout-msec 1000 on every IMDS call, so the
-                          ;; credential chain fails fast on a machine with no
-                          ;; instance profile. Honour it when positive, and
-                          ;; invent no default, exactly as the reference
-                          ;; client does.
-                          (and timeout (pos? timeout))
-                          (assoc :socket-timeout timeout
-                                 :conn-timeout timeout))))))
+    (a/put! channel (->response (http/request (->request request))))
     (catch Throwable t
       ;; aws-api's retry layer reads anomalies off the channel; an exception
       ;; thrown on this thread would never reach it, and invoke would hang.

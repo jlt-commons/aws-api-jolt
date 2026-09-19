@@ -1,5 +1,7 @@
 (ns cognitect.aws.jolt.http-test
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.core.async]
+            [cognitect.aws.http]
             [cognitect.aws.http.jolt :as jhttp])
   (:import [java.nio ByteBuffer]))
 
@@ -56,3 +58,19 @@
 (deftest response-with-no-body-has-nil-body
   ;; A 204 goes through the same mapping; ByteBuffer/wrap on nil would throw.
   (is (nil? (:body (jhttp/->response {:status 204 :headers {}})))))
+
+(deftest transport-failure-arrives-as-an-anomaly
+  (testing "a connection that cannot be made yields a fault on the channel,
+            never a throw, because -submit runs on another thread"
+    (let [client (jhttp/create)
+          ch     (clojure.core.async/chan 1)
+          ;; port 1 on localhost: refused fast, no DNS, no network wait
+          _      (cognitect.aws.http/-submit
+                  client
+                  {:scheme :http :server-name "127.0.0.1" :server-port 1
+                   :uri "/" :request-method :get :headers {}}
+                  ch)
+          result (clojure.core.async/<!! ch)]
+      (is (= :cognitect.anomalies/fault
+             (:cognitect.anomalies/category result)))
+      (is (string? (:cognitect.anomalies/message result))))))

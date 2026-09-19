@@ -79,9 +79,11 @@
       (is (= 1 (count cfgs)))
       (is (= 'cognitect.aws.http.jolt/create
              (:constructor-var (http/read-config (first cfgs)))))))
-  (testing "forcing the shared client yields a usable HttpClient"
-    ;; aws-api resolves the shared client through a delay, so a test that only
-    ;; builds a client never forces it. Force it here: without our resource
-    ;; aws-api falls back to its own default, which throws on Jolt with
-    ;; "aws-api requires JDK 11+".
+  (testing "the shared client resolves without throwing"
+    ;; aws-api resolves the shared client through a delay, so forcing it here
+    ;; is what makes resolution observable at all. Note what this does NOT
+    ;; prove: with jolt.http-client on the classpath, java.net.http resolves,
+    ;; so aws-api's own fallback client would also satisfy this. The guarantee
+    ;; that OUR client is the one discovered comes from the count-and-var
+    ;; assertions above, not from this line.
     (is (http/client? (shared/http-client)))))

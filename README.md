@@ -34,16 +34,19 @@ loses to a top-level one, and when it loses you get
 `Valid logging implementation could not be found` from nine aws-api
 namespaces, none of which is the cause.
 
-**aws-api is pinned to 0.8.847 or later**, for two independent reasons.
+**aws-api is pinned to 0.8.847.** Older releases fail on Jolt for reasons that
+differ by version, measured across the releases we tested:
 
-Releases from 0.8.603 to 0.8.824 call `(.-invoke-async client op-map)`, and
-Jolt reads `(.-name obj args)` as a field access where the JVM treats it as a
-method call.
+| version | fails because |
+|---------|---------------|
+| 0.8.612, 0.8.692 | ships its own `cognitect_aws_http.edn`, so discovery finds two configs; also calls `(.-invoke-async …)` |
+| 0.8.723 | calls `(.-invoke-async …)`, which Jolt reads as a field access where the JVM treats it as a method call |
+| 0.8.762 | no `cognitect/aws/util/xml.clj` at all, so the `:jolt/provides` table here does not match what it imports |
+| 0.8.824 | works in our testing, but predates the XML layout this library's provides table is written against |
 
-Older releases also ship their own `cognitect_aws_http.edn`. 0.8.847 ships
-none, which is why ours is unambiguous. Downgrade below it and aws-api finds
-two configs on the classpath and refuses to start with "Found more than one
-cognitect_aws_http.edn file in the classpath."
+0.8.847 is what the live suite is run against. Other versions are untested
+here, so treat the pin as the supported configuration rather than a floor with
+a known-good range below it.
 
 ## What is verified
 
@@ -56,7 +59,13 @@ All four AWS wire protocols, against real AWS:
 | json | dynamodb ListTables |
 | rest-json | lambda ListFunctions |
 
-SigV4 signing matches the published test vectors, and the resource-only
+`jolt-lang/crypto`'s SHA-256, HMAC-SHA256 and MD5 match their published test
+vectors, and the empty-payload hash aws-api sends is asserted against the
+well-known constant. Note what is not checked: no test pins a complete SigV4
+signature against an AWS-published vector, because aws-api takes its timestamp
+from `(Date.)` with no injection seam and this library does not patch aws-api.
+A broken signature would surface in the live suite, not the offline one. The
+resource-only
 service-descriptor jars resolve, so the whole AWS catalogue is reachable
 rather than a hand-picked subset.
 
@@ -65,6 +74,14 @@ rather than a hand-picked subset.
 **Streaming.** Bodies are read fully into memory, so a large `GetObject`
 holds the whole object at once rather than streaming it. Binary payloads are
 carried as raw bytes and are not corrupted, but they are not streamed either.
+
+**Redirects.** Not followed, matching aws-api's own client. A 3xx is returned
+to aws-api as-is. Following one would replay the SigV4 `Authorization` header,
+signed for the original host, at the redirect target.
+
+**Timeouts.** Only honoured when aws-api asks for one via `:timeout-msec`.
+There is no default deadline, which matches the reference client. A request
+aws-api does not put a timeout on is bounded only by the OS.
 
 ## Tests
 

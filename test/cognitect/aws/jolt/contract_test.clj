@@ -7,6 +7,8 @@
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as creds]
             [cognitect.aws.http :as http]
+            [cognitect.aws.client.shared :as shared]
+            [cognitect.aws.resources :as res]
             [cognitect.aws.jolt.provides])
   (:import [java.nio ByteBuffer]))
 
@@ -71,11 +73,15 @@
     (testing "CreationDate comes back as a real Date, not a string"
       (is (instance? java.util.Date (:CreationDate (first (:Buckets r))))))))
 
-(deftest auto-discovers-the-client-from-the-edn-resource
-  (testing "no :http-client key needed; cognitect_aws_http.edn names ours"
-    (let [c (aws/client {:api :s3 :region "us-east-1"
-                         :credentials-provider
-                         (creds/basic-credentials-provider
-                          {:access-key-id "AKIA" :secret-access-key "s"})})]
-      (is (some? c))
-      (is (pos? (count (aws/ops c)))))))
+(deftest auto-discovers-our-client-from-the-edn-resource
+  (testing "exactly one config on the classpath, and it names OUR constructor"
+    (let [cfgs (res/resources "cognitect_aws_http.edn")]
+      (is (= 1 (count cfgs)))
+      (is (= 'cognitect.aws.http.jolt/create
+             (:constructor-var (http/read-config (first cfgs)))))))
+  (testing "forcing the shared client yields a usable HttpClient"
+    ;; aws-api resolves the shared client through a delay, so a test that only
+    ;; builds a client never forces it. Force it here: without our resource
+    ;; aws-api falls back to its own default, which throws on Jolt with
+    ;; "aws-api requires JDK 11+".
+    (is (http/client? (shared/http-client)))))

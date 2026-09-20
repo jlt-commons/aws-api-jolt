@@ -35,24 +35,28 @@ loses to a top-level one, and when it loses you get
 namespaces, none of which is the cause.
 
 **aws-api is pinned to 0.8.847.** Older releases fail on Jolt for reasons that
-differ by version, measured across the releases we tested:
+differ by version. Measured on jolt v0.8.10, calling S3 `ListBuckets` against a
+real account:
 
-| version | fails because |
-|---------|---------------|
-| 0.8.612, 0.8.692 | ships its own `cognitect_aws_http.edn`, so discovery finds two configs; also calls `(.-invoke-async …)` |
-| 0.8.723 | calls `(.-invoke-async …)`, which Jolt reads as a field access where the JVM treats it as a method call |
-| 0.8.762 | no `cognitect/aws/util/xml.clj` at all, so it does not import what `jolt-lang/xml` declares |
-| 0.8.824 | works in our testing, but predates the XML layout this library's provides table is written against |
+| version | result | why |
+|---------|--------|-----|
+| 0.8.612, 0.8.692 | `Found too many http-client cfgs` | ships its own `cognitect_aws_http.edn`, so discovery sees two |
+| 0.8.723, 0.8.741, 0.8.762 | `IllegalArgumentException: Unknown class xml` | requires `clojure.data.xml`, and `jolt-lang/xml` supplies that namespace's emit half only, with no `parse` |
+| 0.8.824 | works | first release with `cognitect/aws/util/xml.clj`, which uses `javax.xml.stream` |
+| 0.8.847 | works | what the suites run against |
 
-0.8.847 is what the live suite is run against. Other versions are untested
-here, so treat the pin as the supported configuration rather than a floor with
-a known-good range below it.
+So the real boundary is **0.8.824**, the release that stopped requiring
+`clojure.data.xml`. The pin stays at 0.8.847 because that is the version both
+suites exercise; 0.8.824 is known to work but is not covered by CI here.
 
-The `(.-invoke-async …)` half of this is fixed upstream in
-[jolt-lang/jolt#1057](https://github.com/jolt-lang/jolt/pull/1057), merged but
-not yet in a release. Once a release carries it, the releases that failed only
-for that reason should work, but nothing here has tested them and the pin stays
-until something does.
+A note on a claim this README used to make. It previously said the blocker for
+0.8.723 was `(.-invoke-async …)` being read as a field access, and predicted
+those releases would work once a Jolt release carried the fix for it. That fix
+shipped in jolt **v0.8.10**
+([jolt-lang/jolt#1057](https://github.com/jolt-lang/jolt/pull/1057)), and the
+prediction was wrong: they get past the `ArityException` and then fail on
+`clojure.data.xml` instead. Two blockers were stacked, and only the outer one
+was visible. The table above replaces that guess with what was measured.
 
 ## What is verified
 
@@ -98,4 +102,4 @@ AWS_PROFILE=you jolt -M:live   # live, needs credentials
 
 ## Requirements
 
-Jolt v0.8.9 or later.
+Jolt v0.8.9 or later. The suites are run on v0.8.10.

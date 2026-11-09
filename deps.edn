@@ -20,7 +20,7 @@
         ;; data.json 2.5.2 reaches for java.time.format.DateTimeFormatter.
         jolt-lang/time
         {:git/url "https://github.com/jolt-lang/time"
-         :git/sha "8030de28d6cda6096896c3e653babdbc8105499c"}
+         :git/sha "753905d0e694600f593b9904e880a8a8379fb7b1"}
         jolt-lang/logging
         {:git/url "https://github.com/jolt-lang/logging"
          :git/sha "ec6747e55583118d881faf4ab41e68d7e587ce4c"}

@@ -103,3 +103,7 @@ AWS_PROFILE=you jolt -M:live   # live, needs credentials
 ## Requirements
 
 Jolt v0.8.9 or later. The suites are run on v0.8.10.
+
+## License
+
+EPL 2.0, the same license as Jolt and Clojure. See [LICENSE](LICENSE).
